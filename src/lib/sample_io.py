@@ -19,8 +19,9 @@ except ImportError:
 class SampleIO:
     """Handle reading/writing sample JSON files with proper timestamping"""
 
-    def __init__(self, schema_version="0.1.0"):
+    def __init__(self, schema_version="0.1.0", schema_source=None):
         self.schema_version = schema_version
+        self.schema_source = schema_source
 
     @staticmethod
     def generate_filename(sample_label, timestamp=None):
@@ -124,6 +125,8 @@ class SampleIO:
 
         data['metadata']['modified_timestamp'] = now
         data['metadata']['schema_version'] = self.schema_version
+        if self.schema_source is not None:
+            data['metadata']['schema_source'] = self.schema_source
 
         # Write JSON file
         try:

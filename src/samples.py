@@ -44,9 +44,8 @@ class SampleManagerApp:
     def __init__(self):
         # State variables
         self.current_directory = None
-        self.sample_io = SampleIO()
 
-        # Get script directory for schema path
+        # Get script directory for schema path (needed before SampleIO init)
         try:
             script_dir = os.path.dirname(os.path.abspath(__file__))
         except NameError:
@@ -54,6 +53,20 @@ class SampleManagerApp:
 
         self.script_dir = script_dir
         self.current_schema_path = os.path.join(script_dir, 'schemas', 'current', 'schema.json')
+
+        # Read schema version and source for SampleIO
+        _schema_version = '0.1.0'
+        _schema_source = None
+        try:
+            with open(self.current_schema_path, 'r') as f:
+                _schema_data = json.load(f)
+                _schema_version = _schema_data.get('version', '0.1.0')
+                _meta_props = _schema_data.get('properties', {}).get('metadata', {}).get('properties', {})
+                _schema_source = _meta_props.get('schema_source', {}).get('default', None)
+        except:
+            pass
+
+        self.sample_io = SampleIO(schema_version=_schema_version, schema_source=_schema_source)
         self.form_generator = None
         self.current_sample_file = None
         self.timeline_builder = TimelineBuilder(self.sample_io)
