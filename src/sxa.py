@@ -138,6 +138,14 @@ def handle_loading(app, position):
 
         selected_option = options[choice]
 
+        # Determine what action to take
+        should_create_new = selected_option == "New sample"
+        should_duplicate = selected_option == "Duplicate last sample"
+
+        # Show loading message before physical command if a form will be shown
+        if should_create_new or should_duplicate:
+            app.show_loading("Loading position %s, please wait..." % position)
+
         # Store injection timestamp before executing physical command
         injection_timestamp = datetime.utcnow()
 
@@ -160,13 +168,10 @@ def handle_loading(app, position):
             XCMD("sx %s" % position)
 
         # Process user choice - show form if needed
-        if selected_option == "New sample" or selected_option == "Duplicate last sample":
-            # Show the app window
-            app.show()
-
+        if should_create_new or should_duplicate:
             # Check if directory matches current dataset, offer to switch
             if not app.check_and_switch_to_curdata():
-                # User declined to switch - abort operation
+                app.clear_loading()
                 JOptionPane.showMessageDialog(
                     app.frame,
                     "Sample creation cancelled - directory not switched",
@@ -175,12 +180,10 @@ def handle_loading(app, position):
                 )
                 return
 
-        if selected_option == "New sample":
-            # Create new sample with the stored injection timestamp
+        if should_create_new:
             app._new_sample_with_timestamp(injection_timestamp)
             app.update_status("Loading position %s - creating new sample" % position)
-        elif selected_option == "Duplicate last sample":
-            # Duplicate last sample with the stored injection timestamp
+        elif should_duplicate:
             app._duplicate_last_sample_with_timestamp(injection_timestamp)
             app.update_status("Loading position %s - duplicating last sample" % position)
         # If "Skip annotation", execute silently (no confirmation needed)

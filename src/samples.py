@@ -3298,6 +3298,32 @@ if curdata:
         thread.daemon = True
         thread.start()
 
+    def show_loading(self, message="Loading sample..."):
+        """Show a loading message in the form panel and disable sample creation buttons"""
+        self.show()
+
+        # Disable new/duplicate buttons to prevent concurrent operations
+        self.btn_new.setEnabled(False)
+        self.btn_duplicate.setEnabled(False)
+
+        # Show loading message in form panel
+        self.form_panel.removeAll()
+        loading_label = JLabel(message)
+        loading_label.setHorizontalAlignment(JLabel.CENTER)
+        loading_label.setFont(Font("Dialog", Font.ITALIC, 14))
+        loading_label.setForeground(Color(120, 120, 120))
+        self.form_panel.add(loading_label, BorderLayout.CENTER)
+        self.form_panel.revalidate()
+        self.form_panel.repaint()
+
+        self.tabbed_pane.setSelectedIndex(0)  # Switch to Sample Details tab
+
+    def clear_loading(self):
+        """Clear the loading state and re-enable buttons"""
+        self.btn_new.setEnabled(True)
+        # Duplicate state depends on selection, refresh will handle it
+        self._refresh_sample_list()
+
     def show(self):
         """Show the window if hidden"""
         if self.frame is not None:

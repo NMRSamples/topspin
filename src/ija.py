@@ -75,28 +75,14 @@ def main():
 
         selected_option = options[choice]
 
-        # Store injection timestamp before executing physical command
-        injection_timestamp = datetime.utcnow()
-
-        # Execute physical injection (turn off lift air)
-        if TESTING_MODE:
-            JOptionPane.showMessageDialog(
-                app.frame,
-                "[TESTING MODE] Would execute: XCMD('ij')",
-                "Testing Mode",
-                JOptionPane.INFORMATION_MESSAGE
-            )
-        else:
-            XCMD("ij")
-
         # Process user choice
         should_eject_active = False
         should_create_new = False
         should_duplicate = False
 
         if selected_option == "Keep Active":
-            # Do nothing - keep active sample as is
-            return
+            # Do nothing after injection
+            pass
         elif selected_option == "Eject & Create new sample":
             should_eject_active = True
             should_create_new = True
@@ -111,6 +97,28 @@ def main():
             should_duplicate = True
         elif selected_option == "Skip annotation":
             # Do nothing - no form
+            pass
+
+        # Show loading message before physical injection if a form will be shown
+        if should_create_new or should_duplicate:
+            app.show_loading("Injecting sample, please wait...")
+
+        # Store injection timestamp before executing physical command
+        injection_timestamp = datetime.utcnow()
+
+        # Execute physical injection (turn off lift air)
+        if TESTING_MODE:
+            JOptionPane.showMessageDialog(
+                app.frame,
+                "[TESTING MODE] Would execute: XCMD('ij')",
+                "Testing Mode",
+                JOptionPane.INFORMATION_MESSAGE
+            )
+        else:
+            XCMD("ij")
+
+        # If no action needed, return now
+        if selected_option in ("Keep Active", "Skip annotation"):
             return
 
         # Eject active sample if needed
@@ -120,14 +128,11 @@ def main():
             app._refresh_timeline()
             app._update_badge()
 
-        # Show the app window
-        app.show()
-
         # Create new sample or duplicate with the stored injection timestamp
         if should_create_new or should_duplicate:
             # Check if directory matches current dataset, offer to switch
             if not app.check_and_switch_to_curdata():
-                # User declined to switch - abort operation
+                app.clear_loading()
                 JOptionPane.showMessageDialog(
                     app.frame,
                     "Sample creation cancelled - directory not switched",
@@ -142,6 +147,9 @@ def main():
         elif should_duplicate:
             app._duplicate_last_sample_with_timestamp(injection_timestamp)
             app.update_status("Duplicating last sample - lift air off")
+        elif should_eject_active:
+            # Eject-only case, show the app
+            app.show()
 
     except Exception as e:
         JOptionPane.showMessageDialog(
