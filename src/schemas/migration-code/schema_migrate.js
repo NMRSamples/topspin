@@ -78,8 +78,45 @@ function _ensureParents(data, segments) {
 
 function _applySet(data, op) {
     var segments = _parsePath(op.path);
-    var pair = _ensureParents(data, segments);
-    pair[0][pair[1]] = op.value;
+    var value = op.value;
+    if (segments.indexOf("*") === -1) {
+        var pair = _ensureParents(data, segments);
+        pair[0][pair[1]] = value;
+    } else {
+        _walkAndSet(data, segments, 0, value);
+    }
+}
+
+
+function _walkAndSet(obj, segments, depth, value) {
+    if (depth === segments.length - 1) {
+        var seg = segments[depth];
+        if (seg === "*") {
+            if (Array.isArray(obj)) {
+                for (var i = 0; i < obj.length; i++) {
+                    obj[i] = value;
+                }
+            }
+        } else if (obj !== null && typeof obj === "object" && !Array.isArray(obj)) {
+            obj[seg] = value;
+        }
+        return;
+    }
+
+    var seg = segments[depth];
+    if (seg === "*") {
+        if (Array.isArray(obj)) {
+            for (var i = 0; i < obj.length; i++) {
+                _walkAndSet(obj[i], segments, depth + 1, value);
+            }
+        }
+    } else if (obj !== null && typeof obj === "object" && !Array.isArray(obj)) {
+        // With a wildcard elsewhere in the path, a missing intermediate is
+        // a silent no-op. Don't materialize empty containers.
+        if (seg in obj && obj[seg] !== null && typeof obj[seg] === "object") {
+            _walkAndSet(obj[seg], segments, depth + 1, value);
+        }
+    }
 }
 
 
@@ -213,4 +250,22 @@ async function loadSample(migrations) {
     var text = await file.text();
     var data = JSON.parse(text);
     return updateToLatestSchema(data, migrations);
+}
+
+
+// Node.js export (harmless in browsers: `module` is undefined there).
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+        MIGRATIONS_URL: MIGRATIONS_URL,
+        updateToLatestSchema: updateToLatestSchema,
+        loadMigrations: loadMigrations,
+        loadSample: loadSample,
+        _parsePath: _parsePath,
+        _resolve: _resolve,
+        _applySet: _applySet,
+        _applyRemove: _applyRemove,
+        _applyRenameKey: _applyRenameKey,
+        _applyMap: _applyMap,
+        _applyMove: _applyMove
+    };
 }
