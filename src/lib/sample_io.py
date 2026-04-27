@@ -39,8 +39,8 @@ class SampleIO:
         date_part = timestamp.strftime("%Y-%m-%d")
         time_part = timestamp.strftime("%H%M%S")
 
-        # Sanitize sample label for filename
-        safe_label = sample_label.replace(" ", "_")
+        # Sanitize sample label for filename (cast to str in case a numeric value was passed)
+        safe_label = str(sample_label).replace(" ", "_")
         # Remove any characters that aren't alphanumeric, underscore, or hyphen
         safe_label = "".join(c for c in safe_label if c.isalnum() or c in "_-")
 
