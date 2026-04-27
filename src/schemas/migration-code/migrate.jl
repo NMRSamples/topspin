@@ -1,10 +1,10 @@
 """
 Migrate NMR sample metadata to the latest schema version.
 
-Call load_sample(path, migrations_path=MIGRATIONS_PATH[]) to load a JSON file
+Call loadsample(path, migrations_path=MIGRATIONS_PATH[]) to load a JSON file
 and apply migrations. It returns the migrated data as a Dict.
 
-Call update_to_latest_schema!(data) with a parsed JSON Dict. It modifies
+Call updatetolatestschema!(data) with a parsed JSON Dict. It modifies
 the dict in place and returns it.
 
 The migration patch file is expected at current/patch.json relative to
@@ -14,7 +14,7 @@ module SchemaMigrate
 
 using JSON
 
-const MIGRATIONS_PATH = Ref(joinpath(@__DIR__, "current", "patch.json"))
+const MIGRATIONS_PATH = Ref(joinpath(@__DIR__, "..", "current", "patch.json"))
 
 
 function _parse_path(path)
@@ -75,8 +75,45 @@ end
 
 function _apply_set(data, op)
     segments = _parse_path(op["path"])
-    parent, key = _ensure_parents(data, segments)
-    parent[key] = op["value"]
+    value = op["value"]
+    if !("*" in segments)
+        parent, key = _ensure_parents(data, segments)
+        parent[key] = value
+    else
+        _walk_and_set(data, segments, 1, value)
+    end
+end
+
+
+function _walk_and_set(obj, segments, depth, value)
+    if depth == length(segments)
+        seg = segments[depth]
+        if seg == "*"
+            if isa(obj, Vector)
+                for i in eachindex(obj)
+                    obj[i] = value
+                end
+            end
+        elseif isa(obj, Dict)
+            obj[seg] = value
+        end
+        return
+    end
+
+    seg = segments[depth]
+    if seg == "*"
+        if isa(obj, Vector)
+            for item in obj
+                _walk_and_set(item, segments, depth + 1, value)
+            end
+        end
+    elseif isa(obj, Dict)
+        # With a wildcard elsewhere in the path, a missing intermediate is a
+        # silent no-op. Don't materialize empty containers.
+        if haskey(obj, seg) && isa(obj[seg], Union{Dict,Vector})
+            _walk_and_set(obj[seg], segments, depth + 1, value)
+        end
+    end
 end
 
 
@@ -149,13 +186,13 @@ function _load_migrations(path=MIGRATIONS_PATH[])
 end
 
 """
-    update_to_latest_schema!(data, migrations_path=MIGRATIONS_PATH[]) -> Dict
+    updatetolatestschema!(data, migrations_path=MIGRATIONS_PATH[]) -> Dict
 
 Apply migrations to the given data Dict to update it to the latest schema version.
 The data is modified in place and returned. Migrations are loaded from the given
 migrations_path (default is MIGRATIONS_PATH[]).
 """
-function update_to_latest_schema!(data, migrations_path=MIGRATIONS_PATH[])
+function updatetolatestschema!(data, migrations_path=MIGRATIONS_PATH[])
     migrations = _load_migrations(migrations_path)
 
     while true
@@ -179,16 +216,16 @@ function update_to_latest_schema!(data, migrations_path=MIGRATIONS_PATH[])
 end
 
 """
-    load_sample(path, migrations_path=MIGRATIONS_PATH[]) -> Dict
+    loadsample(path, migrations_path=MIGRATIONS_PATH[]) -> Dict
 
 Load a JSON file from the given path and apply migrations to update it to the
 latest schema version. Returns the migrated data as a Dict.
 """
-function load_sample(path, migrations_path=MIGRATIONS_PATH[])
+function loadsample(path, migrations_path=MIGRATIONS_PATH[])
     data = JSON.parsefile(path; dicttype=Dict{String,Any})
-    return update_to_latest_schema!(data, migrations_path)
+    return updatetolatestschema!(data, migrations_path)
 end
 
-export update_to_latest_schema!, load_sample
+export updatetolatestschema!, loadsample
 
 end # module
