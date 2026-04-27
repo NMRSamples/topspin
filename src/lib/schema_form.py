@@ -6,6 +6,7 @@ Dynamically generates Swing forms from JSON Schema
 
 from javax.swing import *
 from javax.swing.event import DocumentListener
+from javax.swing.text import DocumentFilter
 from java.awt import *
 import json
 from collections import OrderedDict
@@ -251,10 +252,11 @@ class SchemaFormGenerator:
                 # Complex array (objects) - use add/remove buttons
                 component = self._create_array_field(field_path, field_schema)
         elif field_type == 'number' or field_type == ['number', 'null']:
-            # Number input with hint text
+            # Number input: DocumentFilter blocks non-numeric characters at entry
             component = JTextField()
             component.setPreferredSize(Dimension(150, 24))
             component.setMinimumSize(Dimension(80, 24))
+            component.getDocument().setDocumentFilter(NumericDocumentFilter())
             component.getDocument().addDocumentListener(FormModificationListener(self))
             if description:
                 # Set hint text using a custom TextPrompt class
@@ -434,8 +436,7 @@ class SchemaFormGenerator:
 
     def _create_array_object_item(self, field_path, item_schema, items_container, items_list):
         """Create a single object item in an array"""
-        item_panel = JPanel()
-        item_panel.setLayout(BoxLayout(item_panel, BoxLayout.Y_AXIS))
+        item_panel = JPanel(GridBagLayout())
         item_panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(Color(200, 200, 200), 1),
             BorderFactory.createEmptyBorder(8, 8, 8, 8)
@@ -444,6 +445,7 @@ class SchemaFormGenerator:
         item_panel.setAlignmentX(Component.LEFT_ALIGNMENT)
 
         item_components = {}
+        row = 0
 
         # Create fields for object properties
         item_properties = item_schema.get('properties', {})
@@ -452,65 +454,69 @@ class SchemaFormGenerator:
             enum_values = prop_schema.get('enum')
             description = prop_schema.get('description', '')
 
-            field_panel = JPanel(GridBagLayout())
-            gbc = GridBagConstraints()
-            gbc.insets = Insets(3, 5, 3, 5)
-            gbc.anchor = GridBagConstraints.WEST
-
             # Use title from schema if available, otherwise use prop_name
             label_text = prop_schema.get('title', prop_name)
             label = JLabel("%s:" % label_text)
-            label.setPreferredSize(Dimension(120, 20))  # Fixed width for alignment
-            label.setMinimumSize(Dimension(120, 20))
             if description:
                 label.setToolTipText(description)
 
+            gbc = GridBagConstraints()
+            gbc.insets = Insets(3, 5, 3, 5)
+            gbc.anchor = GridBagConstraints.WEST
             gbc.gridx = 0
-            gbc.gridy = 0
+            gbc.gridy = row
             gbc.weightx = 0.0
             gbc.fill = GridBagConstraints.NONE
-            field_panel.add(label, gbc)
+            item_panel.add(label, gbc)
 
+            is_numeric = prop_type in ('number', 'integer') or prop_type == ['number', 'null'] or prop_type == ['integer', 'null']
             if enum_values:
                 component = JComboBox(enum_values)
                 component.addActionListener(lambda e: self._mark_modified())
                 if description:
                     component.setToolTipText(description)
-            elif prop_type == 'number':
+            elif is_numeric:
                 component = JTextField(10)
+                component.getDocument().setDocumentFilter(NumericDocumentFilter())
                 component.getDocument().addDocumentListener(FormModificationListener(self))
                 if description:
-                    # Set hint text (store with unique key for array items)
                     prompt_key = "%s[%d].%s" % (field_path, len(items_list), prop_name)
                     self.text_prompts[prompt_key] = TextPrompt(description, component)
             else:
                 component = JTextField(15)
                 component.getDocument().addDocumentListener(FormModificationListener(self))
                 if description:
-                    # Set hint text (store with unique key for array items)
                     prompt_key = "%s[%d].%s" % (field_path, len(items_list), prop_name)
                     self.text_prompts[prompt_key] = TextPrompt(description, component)
 
             item_components[prop_name] = component
 
+            gbc = GridBagConstraints()
+            gbc.insets = Insets(3, 5, 3, 5)
+            gbc.anchor = GridBagConstraints.WEST
             gbc.gridx = 1
-            gbc.gridy = 0
+            gbc.gridy = row
             gbc.weightx = 1.0
             gbc.fill = GridBagConstraints.HORIZONTAL
-            field_panel.add(component, gbc)
+            item_panel.add(component, gbc)
 
-            item_panel.add(field_panel)
+            row += 1
 
-        # Remove button
-        btn_panel = JPanel(FlowLayout(FlowLayout.RIGHT))
+        # Remove button spanning both columns
         remove_btn = JButton('Remove')
         remove_btn.addActionListener(lambda e: (items_container.remove(item_panel),
                                                 items_list.remove(item_components),
                                                 items_container.revalidate(),
                                                 items_container.repaint(),
                                                 self._mark_modified()))
-        btn_panel.add(remove_btn)
-        item_panel.add(btn_panel)
+        gbc = GridBagConstraints()
+        gbc.insets = Insets(3, 5, 3, 5)
+        gbc.gridx = 0
+        gbc.gridy = row
+        gbc.gridwidth = 2
+        gbc.anchor = GridBagConstraints.EAST
+        gbc.fill = GridBagConstraints.NONE
+        item_panel.add(remove_btn, gbc)
 
         items_list.append(item_components)
 
@@ -602,8 +608,7 @@ class SchemaFormGenerator:
             elif item_type == 'object' and isinstance(value, dict):
                 # Object item (e.g., Sample.Components)
                 item_components = {}
-                item_panel = JPanel()
-                item_panel.setLayout(BoxLayout(item_panel, BoxLayout.Y_AXIS))
+                item_panel = JPanel(GridBagLayout())
                 item_panel.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createLineBorder(Color(200, 200, 200), 1),
                     BorderFactory.createEmptyBorder(8, 8, 8, 8)
@@ -611,6 +616,7 @@ class SchemaFormGenerator:
                 item_panel.setBackground(Color.WHITE)
                 item_panel.setAlignmentX(Component.LEFT_ALIGNMENT)
 
+                row = 0
                 # Create fields for object properties
                 item_properties = items_schema.get('properties', {})
                 for prop_name, prop_schema in item_properties.items():
@@ -618,25 +624,22 @@ class SchemaFormGenerator:
                     enum_values = prop_schema.get('enum')
                     description = prop_schema.get('description', '')
 
-                    field_panel = JPanel(GridBagLayout())
-                    gbc = GridBagConstraints()
-                    gbc.insets = Insets(3, 5, 3, 5)
-                    gbc.anchor = GridBagConstraints.WEST
-
                     # Use title from schema if available, otherwise use prop_name
                     label_text = prop_schema.get('title', prop_name)
                     label = JLabel("%s:" % label_text)
-                    label.setPreferredSize(Dimension(120, 20))  # Fixed width for alignment
-                    label.setMinimumSize(Dimension(120, 20))
                     if description:
                         label.setToolTipText(description)
 
+                    gbc = GridBagConstraints()
+                    gbc.insets = Insets(3, 5, 3, 5)
+                    gbc.anchor = GridBagConstraints.WEST
                     gbc.gridx = 0
-                    gbc.gridy = 0
+                    gbc.gridy = row
                     gbc.weightx = 0.0
                     gbc.fill = GridBagConstraints.NONE
-                    field_panel.add(label, gbc)
+                    item_panel.add(label, gbc)
 
+                    is_numeric = prop_type in ('number', 'integer') or prop_type == ['number', 'null'] or prop_type == ['integer', 'null']
                     if enum_values:
                         component = JComboBox(enum_values)
                         component.addActionListener(lambda e: self._mark_modified())
@@ -645,15 +648,14 @@ class SchemaFormGenerator:
                         # Set selected value if exists
                         if prop_name in value:
                             component.setSelectedItem(value[prop_name])
-                    elif prop_type == 'number':
+                    elif is_numeric:
                         component = JTextField(10)
+                        component.getDocument().setDocumentFilter(NumericDocumentFilter())
                         component.getDocument().addDocumentListener(FormModificationListener(self))
                         # Set value first before hint text
                         if prop_name in value:
                             component.setText(str(value[prop_name]))
                         if description:
-                            # Set hint text (store with unique key for array items)
-                            # Note: Don't use field_path here as it's not defined in this scope
                             prompt_key = "array_item_%d_%s" % (len(items_list), prop_name)
                             self.text_prompts[prompt_key] = TextPrompt(description, component)
                     else:
@@ -663,22 +665,23 @@ class SchemaFormGenerator:
                         if prop_name in value:
                             component.setText(str(value[prop_name]))
                         if description:
-                            # Set hint text (store with unique key for array items)
                             prompt_key = "array_item_%d_%s" % (len(items_list), prop_name)
                             self.text_prompts[prompt_key] = TextPrompt(description, component)
 
                     item_components[prop_name] = component
 
+                    gbc = GridBagConstraints()
+                    gbc.insets = Insets(3, 5, 3, 5)
+                    gbc.anchor = GridBagConstraints.WEST
                     gbc.gridx = 1
-                    gbc.gridy = 0
+                    gbc.gridy = row
                     gbc.weightx = 1.0
                     gbc.fill = GridBagConstraints.HORIZONTAL
-                    field_panel.add(component, gbc)
+                    item_panel.add(component, gbc)
 
-                    item_panel.add(field_panel)
+                    row += 1
 
-                # Remove button
-                btn_panel = JPanel(FlowLayout(FlowLayout.RIGHT))
+                # Remove button spanning both columns
                 remove_btn = JButton('Remove')
                 remove_btn.addActionListener(lambda e, p=item_panel, c=item_components: (
                     items_container.remove(p),
@@ -686,8 +689,14 @@ class SchemaFormGenerator:
                     items_container.revalidate(),
                     items_container.repaint(),
                     self._mark_modified()))
-                btn_panel.add(remove_btn)
-                item_panel.add(btn_panel)
+                gbc = GridBagConstraints()
+                gbc.insets = Insets(3, 5, 3, 5)
+                gbc.gridx = 0
+                gbc.gridy = row
+                gbc.gridwidth = 2
+                gbc.anchor = GridBagConstraints.EAST
+                gbc.fill = GridBagConstraints.NONE
+                item_panel.add(remove_btn, gbc)
 
                 items_container.add(item_panel)
                 items_list.append(item_components)
@@ -721,13 +730,16 @@ class SchemaFormGenerator:
                         items = re.split(r'[,;]', text)
                         value = [item.strip() for item in items if item.strip()]
                     else:
-                        # Try to convert to number if it looks like one
-                        try:
-                            if '.' in text:
-                                value = float(text)
-                            else:
-                                value = int(text)
-                        except ValueError:
+                        field_type = self._get_field_type(field_path)
+                        is_numeric = field_type in ('number', 'integer') or field_type == ['number', 'null'] or field_type == ['integer', 'null']
+                        if is_numeric:
+                            # Convert to number; skip (store None) if not parseable
+                            try:
+                                value = float(text) if '.' in text else int(text)
+                            except (ValueError, Exception):
+                                value = None
+                        else:
+                            # String field — always keep as string regardless of content
                             value = text
             elif isinstance(component, JTextArea):
                 # Check if this field has a TextPrompt and get the real text
@@ -771,13 +783,19 @@ class SchemaFormGenerator:
             elif isinstance(item, dict):
                 # Object item
                 item_data = {}
+                item_props = items_schema.get('properties', {})
                 for key, comp in item.items():
                     if isinstance(comp, JTextField):
                         text = self._get_text_without_hint(comp)
                         if text:
-                            try:
-                                item_data[key] = float(text) if '.' in text else int(text)
-                            except ValueError:
+                            prop_type = item_props.get(key, {}).get('type') if item_props else None
+                            is_numeric = prop_type in ('number', 'integer') or prop_type == ['number', 'null'] or prop_type == ['integer', 'null']
+                            if is_numeric:
+                                try:
+                                    item_data[key] = float(text) if '.' in text else int(text)
+                                except (ValueError, Exception):
+                                    pass  # Skip invalid numeric input
+                            else:
                                 item_data[key] = text
                     elif isinstance(comp, JComboBox):
                         item_data[key] = comp.getSelectedItem()
@@ -808,6 +826,24 @@ class SchemaFormGenerator:
                 return items.get('type') == 'string'
 
         return False
+
+    def _get_field_type(self, field_path):
+        """Return the declared schema type for a dot-notation field path, or None if not found"""
+        keys = field_path.split('.')
+        schema_obj = self.schema.get('properties', {})
+
+        for key in keys:
+            if key in schema_obj:
+                schema_obj = schema_obj[key]
+                if isinstance(schema_obj, dict) and schema_obj.get('type') == 'object':
+                    schema_obj = schema_obj.get('properties', {})
+            else:
+                return None
+
+        if isinstance(schema_obj, dict):
+            return schema_obj.get('type')
+
+        return None
 
     @staticmethod
     def _get_nested_value(data, path):
@@ -851,3 +887,35 @@ class FormModificationListener(DocumentListener):
 
     def changedUpdate(self, event):
         self.form_generator._mark_modified()
+
+
+def _is_valid_partial_number(text):
+    """Return True if text is empty or a valid partial/complete numeric string."""
+    import re
+    if not text:
+        return True
+    # Allow: optional leading minus, digits, at most one decimal point, more digits
+    return bool(re.match(r'^-?[0-9]*\.?[0-9]*$', text))
+
+
+class NumericDocumentFilter(DocumentFilter):
+    """DocumentFilter that blocks non-numeric characters from being entered."""
+
+    def insertString(self, fb, offset, string, attr):
+        if string is None:
+            return
+        doc = fb.getDocument()
+        existing = doc.getText(0, doc.getLength())
+        new_text = existing[:offset] + string + existing[offset:]
+        if _is_valid_partial_number(new_text):
+            DocumentFilter.insertString(self, fb, offset, string, attr)
+
+    def replace(self, fb, offset, length, text, attrs):
+        doc = fb.getDocument()
+        existing = doc.getText(0, doc.getLength())
+        new_text = existing[:offset] + (text or '') + existing[offset + length:]
+        if _is_valid_partial_number(new_text):
+            DocumentFilter.replace(self, fb, offset, length, text, attrs)
+
+    def remove(self, fb, offset, length):
+        DocumentFilter.remove(self, fb, offset, length)
