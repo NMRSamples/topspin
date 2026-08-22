@@ -1,6 +1,6 @@
 # NMR Sample Manager for TopSpin
 
-[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://nmrsamples.github.io/topspin/)
+[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://nmrsamples.github.io/topspin/)
 [![DOI](https://zenodo.org/badge/1073026274.svg)](https://doi.org/10.5281/zenodo.17427482)
 
 A lightweight sample metadata management system for Bruker TopSpin (v3+), built using the internal Jython interface.
