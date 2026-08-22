@@ -1,6 +1,6 @@
 # NMR Sample Manager for TopSpin
 
-[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://nmr-samples.github.io/topspin/)
+[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://nmrsamples.github.io/topspin/)
 [![DOI](https://zenodo.org/badge/1073026274.svg)](https://doi.org/10.5281/zenodo.17427482)
 
 A lightweight sample metadata management system for Bruker TopSpin (v3+), built using the internal Jython interface.
@@ -19,8 +19,8 @@ This tool provides a GUI for recording sample metadata as JSON files within expe
 ### Part of the NMR Samples Ecosystem
 
 This TopSpin integration is part of a broader metadata management system:
-- **Schema definition**: [github.com/nmr-samples/schema](https://github.com/nmr-samples/schema)
-- **Documentation & tools**: [nmr-samples.github.io](https://nmr-samples.github.io)
+- **Schema definition**: [github.com/NMRSamples/schema](https://github.com/NMRSamples/schema)
+- **Documentation & tools**: [nmrsamples.github.io](https://nmrsamples.github.io)
 
 ## Features
 
@@ -34,7 +34,7 @@ This TopSpin integration is part of a broader metadata management system:
 
 1. Clone this repository (not within `/opt/topspin...`):
    ```bash
-   git clone https://github.com/nmr-samples/topspin.git
+   git clone https://github.com/NMRSamples/topspin.git
    ```
 
 2. In TopSpin, use `setres` to add the `src` directory to Python paths.
@@ -73,4 +73,4 @@ This TopSpin integration is part of a broader metadata management system:
 
 ## Data Model
 
-Sample metadata is stored as JSON files following the [NMR Sample Schema](https://github.com/nmr-samples/schema), with filenames like `2025-10-09_143022_MyProtein.json`.
+Sample metadata is stored as JSON files following the [NMR Sample Schema](https://github.com/NMRSamples/schema), with filenames like `2025-10-09_143022_MyProtein.json`.

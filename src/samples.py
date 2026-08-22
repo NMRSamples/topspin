@@ -769,7 +769,7 @@ class SampleManagerApp:
         right_panel = JPanel(FlowLayout(FlowLayout.RIGHT))
         repo_link = JLabel("<html><a href=''>View Documentation...</a></html>")
         repo_link.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR))
-        repo_link.setToolTipText("https://nmr-samples.github.io/topspin/")
+        repo_link.setToolTipText("https://nmrsamples.github.io/topspin/")
 
         # Add click listener to open URL
         def open_repo(event):
@@ -779,7 +779,7 @@ class SampleManagerApp:
                 if Desktop.isDesktopSupported():
                     desktop = Desktop.getDesktop()
                     if desktop.isSupported(Desktop.Action.BROWSE):
-                        desktop.browse(URI("https://nmr-samples.github.io/topspin/"))
+                        desktop.browse(URI("https://nmrsamples.github.io/topspin/"))
             except Exception as e:
                 MSG("Could not open browser: %s" % str(e))
 
