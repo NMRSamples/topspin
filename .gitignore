@@ -2,6 +2,3 @@
 info/
 .claude/
 src/config.json
-
-# MkDocs build output
-site/
